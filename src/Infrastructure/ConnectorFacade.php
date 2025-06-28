@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace Raketa\BackendTestTask\Infrastructure;
 
+use Psr\Log\LoggerInterface;
 use Redis;
 use RedisException;
 
@@ -14,20 +15,29 @@ class ConnectorFacade
     public ?string $password = null;
     public ?int $dbindex = null;
 
-    public $connector;
+    public Connector $connector;
 
-    public function __construct($host, $port, $password, $dbindex)
+    public LoggerInterface $logger;
+
+    public function __construct(string $host, int $port, ?string $password, ?int $dbindex)
     {
         $this->host = $host;
         $this->port = $port;
         $this->password = $password;
         $this->dbindex = $dbindex;
+        //не иимеет смысла выносить наружу, все равно инициализируется рядом с constructor
+        $this->build();
     }
 
-    protected function build(): void
+    public function setLogger(LoggerInterface $logger): void
+    {
+        $this->logger = $logger;
+    }
+
+    private function build(): void
     {
         $redis = new Redis();
-
+        $isConnected = false;
         try {
             $isConnected = $redis->isConnected();
             if (! $isConnected && $redis->ping('Pong')) {
@@ -36,7 +46,8 @@ class ConnectorFacade
                     $this->port,
                 );
             }
-        } catch (RedisException) {
+        } catch (RedisException $ex) {
+            $this->logger->error($ex->getMessage());
         }
 
         if ($isConnected) {
@@ -45,4 +56,5 @@ class ConnectorFacade
             $this->connector = new Connector($redis);
         }
     }
+
 }
