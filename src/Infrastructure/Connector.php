@@ -4,26 +4,28 @@ declare(strict_types = 1);
 
 namespace Raketa\BackendTestTask\Infrastructure;
 
-use Raketa\BackendTestTask\Domain\Cart;
-use Redis;
+use Raketa\BackendTestTask\Entity\Cart;
+use Raketa\BackendTestTask\Managers\RedisManager;
 use RedisException;
 
 class Connector
 {
-    private Redis $redis;
 
-    public function __construct(Redis $redis)
+    private RedisManager $manager;
+
+    public function __construct(string $host, int $port, string $password, ?int $dbindex = 1)
     {
-        return $this->redis = $redis;
+        $this->manager = new RedisManager($host, $port, $password, $dbindex);
     }
 
     /**
      * @throws ConnectorException
      */
-    public function get(string $key): Cart
+    public function get(string $key): ?Cart
     {
+        $this->checkConnection();
         try {
-            return unserialize($this->redis->get($key));
+            return unserialize($this->manager->get($key));
         } catch (RedisException $e) {
             throw new ConnectorException('Connector error', $e->getCode(), $e);
         }
@@ -32,17 +34,46 @@ class Connector
     /**
      * @throws ConnectorException
      */
-    public function set(string $key, Cart $value): void
+    public function set(string $key, Cart $value, $ttl = 400): void
     {
+        $this->checkConnection();
         try {
-            $this->redis->setex($key, 24 * 60 * 60, serialize($value));
+            $this->manager->set($key, serialize($value), $ttl);
         } catch (RedisException $e) {
             throw new ConnectorException('Connector error', $e->getCode(), $e);
         }
     }
 
+    /**
+     * @throws ConnectorException
+     */
     public function has($key): bool
     {
-        return $this->redis->exists($key);
+        $this->checkConnection();
+        try {
+            return $this->manager->has($key);
+        } catch (RedisException $e) {
+            throw new ConnectorException('Connector error', $e->getCode(), $e);
+        }
     }
+
+    public function isAvailable(): bool
+    {
+        return $this->manager->isAvailable();
+    }
+
+    /**
+     * @throws ConnectorException
+     */
+    private function checkConnection(): void
+    {
+        if(!$this->isAvailable()){
+            try {
+                $this->manager->connect();
+            }catch (RedisException $e){
+                throw new ConnectorException('Connector error', $e->getCode(), $e);
+            }
+        }
+    }
+
 }

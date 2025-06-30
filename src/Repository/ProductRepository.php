@@ -5,7 +5,8 @@ declare(strict_types = 1);
 namespace Raketa\BackendTestTask\Repository;
 
 use Doctrine\DBAL\Connection;
-use Raketa\BackendTestTask\Repository\Entity\Product;
+use Exception;
+use Raketa\BackendTestTask\Entity\Product;
 
 class ProductRepository
 {
@@ -16,14 +17,21 @@ class ProductRepository
         $this->connection = $connection;
     }
 
-    public function getByUuid(string $uuid): Product
+    /**
+     * @throws Exception
+     */
+    public function getByUuid(string $uuid): ?Product
     {
-        $row = $this->connection->fetchOne(
-            "SELECT * FROM products WHERE uuid = " . $uuid,
-        );
+        try{
+            $row = $this->connection->fetchOne(
+                "SELECT * FROM products WHERE uuid = " . $uuid,
+            );
+        } catch (\Doctrine\DBAL\Exception $e) {
+            throw new Exception('Database not available');
+        }
 
         if (empty($row)) {
-            throw new Exception('Product not found');
+            return null;
         }
 
         return $this->make($row);

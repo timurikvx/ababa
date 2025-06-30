@@ -2,28 +2,20 @@
 
 namespace Raketa\BackendTestTask\View;
 
-use Raketa\BackendTestTask\Repository\Entity\Product;
-use Raketa\BackendTestTask\Repository\ProductRepository;
+use Raketa\BackendTestTask\Entity\Product;
 
 readonly class ProductsView
 {
-    public function __construct(
-        private ProductRepository $productRepository
-    ) {
+    private ProductView $productView;
+    public function __construct()
+    {
+        $this->productView = new ProductView();
     }
 
-    public function toArray(string $category): array
+    public function toArray(array $products): array
     {
-        return array_map(
-            fn (Product $product) => [
-                'id' => $product->getId(),
-                'uuid' => $product->getUuid(),
-                'category' => $product->getCategory(),
-                'description' => $product->getDescription(),
-                'thumbnail' => $product->getThumbnail(),
-                'price' => $product->getPrice(),
-            ],
-            $this->productRepository->getByCategory($category)
-        );
+        return array_map(function(Product $product){
+            return $this->productView->toArray($product);
+        }, $products);
     }
 }
